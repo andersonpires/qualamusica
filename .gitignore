@@ -1,0 +1,9 @@
+.env
+.env.local
+.env.production
+.env.*.local
+!vendor/
+zz_Temp/
+.idea/
+.vscode/
+*.log

@@ -1,0 +1,8 @@
+.git
+.gitignore
+.env
+.env.local
+.env.production
+zz_Temp
+vendor
+README.md
