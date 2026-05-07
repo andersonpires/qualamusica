@@ -29,11 +29,23 @@ class Database
 
         Config::load();
 
-        $host = Config::get('DB_HOST', 'localhost');
-        $port = Config::get('DB_PORT', 3306);
-        $dbName = Config::get('DB_NAME', 'qualamusica');
-        $user = Config::get('DB_USER', 'root');
-        $pass = Config::get('DB_PASS', '');
+        $host = trim((string) Config::get('DB_HOST', ''));
+        $portRaw = Config::get('DB_PORT', '');
+        $dbName = trim((string) Config::get('DB_NAME', ''));
+        $user = trim((string) Config::get('DB_USER', ''));
+        $pass = (string) Config::get('DB_PASS', '');
+
+        if ($host === '' || $dbName === '' || $user === '' || $pass === '' || $portRaw === '') {
+            throw new Exception('Configuração de banco incompleta. Defina DB_HOST, DB_PORT, DB_NAME, DB_USER e DB_PASS no .env.');
+        }
+
+        $port = filter_var($portRaw, FILTER_VALIDATE_INT, [
+            'options' => ['min_range' => 1, 'max_range' => 65535]
+        ]);
+
+        if ($port === false) {
+            throw new Exception('DB_PORT inválida no .env.');
+        }
 
         try {
             $dsn = "mysql:host={$host};port={$port};dbname={$dbName};charset=utf8mb4";
