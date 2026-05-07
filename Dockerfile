@@ -22,7 +22,8 @@ WORKDIR /var/www/html
 COPY --from=vendor /app/vendor ./vendor
 COPY . .
 
-RUN sed -ri '/<Directory \\/var\\/www\\/>/,/<\\/Directory>/ s/AllowOverride None/AllowOverride All/' /etc/apache2/apache2.conf \
+RUN printf "<Directory /var/www/html>\n    AllowOverride All\n</Directory>\n" > /etc/apache2/conf-available/allow-override.conf \
+    && a2enconf allow-override \
     && chown -R www-data:www-data /var/www/html
 
 EXPOSE 80

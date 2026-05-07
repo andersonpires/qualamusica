@@ -1,27 +1,22 @@
 <?php
 /**
- * Classe Config - Carrega variáveis de ambiente
- * 
- * Responsável por:
- * - Carregar arquivo .env
- * - Fornecer acesso centralizado às configurações
- * - Garantir valores padrão seguros
+ * Classe Config - Carrega variáveis de ambiente.
  */
-
 class Config
 {
     /**
-     * Variáveis carregadas
+     * Variáveis carregadas.
      */
     private static array $vars = [];
 
     /**
-     * Flag para indicar se já foi carregado
+     * Flag para indicar se já foi carregado.
      */
     private static bool $loaded = false;
 
     /**
-     * Carrega arquivo .env na raiz do projeto
+     * Carrega arquivo .env na raiz do projeto (quando existir)
+     * e complementa com variáveis de ambiente do servidor/container.
      */
     public static function load(): void
     {
@@ -31,46 +26,53 @@ class Config
 
         $envFile = dirname(dirname(dirname(__FILE__))) . '/.env';
 
-        if (!file_exists($envFile)) {
-            throw new Exception('Arquivo .env não encontrado em: ' . $envFile);
+        if (file_exists($envFile)) {
+            $lines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+
+            foreach ($lines as $line) {
+                if (strpos(trim($line), '#') === 0) {
+                    continue;
+                }
+
+                if (strpos($line, '=') === false) {
+                    continue;
+                }
+
+                [$key, $value] = explode('=', $line, 2);
+                $key = trim($key);
+                $value = trim($value);
+
+                if (($value[0] ?? null) === '"' && ($value[-1] ?? null) === '"') {
+                    $value = substr($value, 1, -1);
+                }
+
+                self::$vars[$key] = $value;
+                $_ENV[$key] = $value;
+                putenv($key . '=' . $value);
+            }
         }
 
-        $lines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-
-        foreach ($lines as $line) {
-            // Ignora comentários
-            if (strpos(trim($line), '#') === 0) {
-                continue;
+        // Fallback: ambiente do runtime (Docker/EasyPanel).
+        foreach ($_ENV as $key => $value) {
+            if (!array_key_exists((string) $key, self::$vars) && (is_scalar($value) || $value === null)) {
+                self::$vars[(string) $key] = (string) $value;
             }
+        }
 
-            // Parse da linha
-            if (strpos($line, '=') === false) {
-                continue;
+        $envList = getenv();
+        if (is_array($envList)) {
+            foreach ($envList as $key => $value) {
+                if (!array_key_exists((string) $key, self::$vars) && (is_scalar($value) || $value === null)) {
+                    self::$vars[(string) $key] = (string) $value;
+                }
             }
-
-            [$key, $value] = explode('=', $line, 2);
-            $key = trim($key);
-            $value = trim($value);
-
-            // Remove aspas se houver
-            if (($value[0] ?? null) === '"' && ($value[-1] ?? null) === '"') {
-                $value = substr($value, 1, -1);
-            }
-
-            self::$vars[$key] = $value;
-            $_ENV[$key] = $value;
-            putenv($key . '=' . $value);
         }
 
         self::$loaded = true;
     }
 
     /**
-     * Obtém valor de configuração
-     * 
-     * @param string $key Chave da configuração
-     * @param mixed $default Valor padrão se não existir
-     * @return mixed Valor da configuração
+     * Obtém valor de configuração.
      */
     public static function get(string $key, mixed $default = null): mixed
     {
@@ -82,7 +84,7 @@ class Config
     }
 
     /**
-     * Verifica se configuração existe
+     * Verifica se configuração existe.
      */
     public static function has(string $key): bool
     {
@@ -94,7 +96,7 @@ class Config
     }
 
     /**
-     * Obtém valor booleano com parsing seguro para variáveis de ambiente.
+     * Obtém valor booleano com parsing seguro.
      */
     public static function getBool(string $key, bool $default = false): bool
     {
